@@ -130,11 +130,65 @@
       padding: 34px 24px; text-align: center; cursor: pointer; user-select: none;
       box-shadow: 0 6px 26px rgba(16,16,20,.12); border: 2px solid var(--border);
       position: relative; overflow: hidden;
+      transform-style: preserve-3d;
+      will-change: transform, opacity;
     }
     .flashcard::after {
       content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
       background: linear-gradient(90deg, var(--red), var(--violet));
     }
+
+    /* ===== ANIMATIONS DES CARTES ===== */
+    /* Entrée : la carte arrive en glissant depuis le bas */
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(26px) scale(.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    /* Sortie : la carte file vers le haut et s'efface */
+    @keyframes cardOut {
+      from { opacity: 1; transform: translateY(0) scale(1); }
+      to   { opacity: 0; transform: translateY(-30px) scale(.96); }
+    }
+    /* Retournement 3D du contenu lors de la révélation */
+    @keyframes flipIn {
+      0%   { transform: perspective(900px) rotateX(-88deg); opacity: 0; }
+      60%  { opacity: 1; }
+      100% { transform: perspective(900px) rotateX(0deg); opacity: 1; }
+    }
+    .flashcard.card-in  { animation: cardIn .34s cubic-bezier(.22,.9,.32,1.1) both; }
+    .flashcard.card-out { animation: cardOut .26s cubic-bezier(.5,0,.75,0) both; pointer-events: none; }
+    .fc-flip { animation: flipIn .46s cubic-bezier(.2,.8,.3,1.05) both; transform-origin: center center; }
+
+    /* Pulsation au survol/appui pour inviter à toucher */
+    @keyframes hintPulse {
+      0%, 100% { opacity: .55; }
+      50%      { opacity: 1; }
+    }
+    .fc-hint { animation: hintPulse 2.2s ease-in-out infinite; }
+
+    /* Ondulation de couleur quand la carte est réussie */
+    @keyframes goodFlash {
+      0%   { box-shadow: 0 6px 26px rgba(16,16,20,.12); }
+      40%  { box-shadow: 0 0 0 6px rgba(46,139,87,.35), 0 6px 26px rgba(16,16,20,.12); }
+      100% { box-shadow: 0 6px 26px rgba(16,16,20,.12); }
+    }
+    @keyframes badFlash {
+      0%   { box-shadow: 0 6px 26px rgba(16,16,20,.12); }
+      40%  { box-shadow: 0 0 0 6px rgba(225,0,15,.3), 0 6px 26px rgba(16,16,20,.12); }
+      100% { box-shadow: 0 6px 26px rgba(16,16,20,.12); }
+    }
+    .flashcard.flash-good { animation: goodFlash .5s ease-out; }
+    .flashcard.flash-bad  { animation: badFlash .5s ease-out; }
+
+    /* Secousse pour "Raté" */
+    @keyframes shakeX {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-7px); }
+      40% { transform: translateX(7px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(5px); }
+    }
+    .flashcard.shake { animation: shakeX .42s ease-in-out; }
     .fc-level {
       position: absolute; top: 14px; right: 16px; font-size: .62rem; font-weight: 800;
       text-transform: uppercase; letter-spacing: 1px; color: var(--gray);
@@ -156,7 +210,35 @@
       font-weight: 800; font-size: .72rem; cursor: pointer; color: #fff; line-height: 1.25;
     }
     .grade:active { transform: scale(.96); }
+    .grade { transition: transform .12s ease, box-shadow .2s ease, filter .2s ease; }
+    .grade:hover { filter: brightness(1.08); }
     .grade small { display: block; font-size: .6rem; opacity: .9; font-weight: 700; margin-top: 3px; }
+
+    /* Apparition échelonnée des boutons de note */
+    @keyframes gradeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .grades:not(.hidden) .grade { animation: gradeIn .3s ease-out both; }
+    .grades:not(.hidden) .grade:nth-child(2) { animation-delay: .05s; }
+    .grades:not(.hidden) .grade:nth-child(3) { animation-delay: .1s; }
+    .grades:not(.hidden) .grade:nth-child(4) { animation-delay: .15s; }
+
+    /* Le score bondit quand il augmente */
+    @keyframes scorePop {
+      0%   { transform: scale(1); color: inherit; }
+      45%  { transform: scale(1.35); color: var(--red); }
+      100% { transform: scale(1); color: inherit; }
+    }
+    .score-pop { animation: scorePop .55s cubic-bezier(.2,.8,.3,1.2); display: inline-block; }
+
+    /* Petite tortue qui traverse l'écran à la fin de session */
+    @keyframes tortueWalk {
+      from { transform: translateX(-70px) scaleX(-1); opacity: 0; }
+      20%  { opacity: 1; }
+      to   { transform: translateX(70px) scaleX(-1); opacity: 0; }
+    }
+    .tortue-walk { animation: tortueWalk 1.8s ease-in-out; }
     .g0 { background: var(--red); }
     .g1 { background: #D97706; }
     .g2 { background: var(--violet); }
@@ -296,8 +378,8 @@
       </div>
 
       <div id="studyDone" class="hidden">
-        <div class="card" style="text-align:center">
-          <div class="done-emoji">🐢</div>
+        <div class="card" style="text-align:center; position:relative; overflow:hidden">
+          <div class="done-emoji" id="doneTortue">🐢</div>
           <h2>Session terminée !</h2>
           <p class="muted" id="doneMsg" style="margin-bottom:16px"></p>
           <div class="stats-grid" style="margin-bottom:16px">
@@ -605,9 +687,17 @@ function renderCard() {
   $('studyCardWrap').classList.remove('hidden');
   $('fcLevel').textContent = c.status === 'new' ? 'Nouvelle'
     : (c.status === 'due' ? 'À revoir' : 'Révision libre');
+
+  const fc = $('flashcard');
+  fc.classList.remove('card-out', 'shake', 'flash-good', 'flash-bad', 'fc-flip');
+  $('fcFace').classList.remove('fc-flip');
   $('fcFace').innerHTML = '<div class="fc-front">' + esc(c.front) + '</div>';
   $('fcHint').textContent = 'Touche pour révéler';
   $('gradesRow').classList.add('hidden');
+
+  // Animation d'entrée : la carte arrive en glissant
+  void fc.offsetWidth; // force le reflow pour rejouer l'animation
+  fc.classList.add('card-in');
 
   const r = c.review || { repetitions: 0, interval_days: 0, ease: 2.5 };
   const labels = [];
@@ -635,6 +725,11 @@ function reveal() {
     '<div style="font-size:1.5rem;font-weight:800;color:var(--gray);margin-bottom:10px">' + esc(c.front) + '</div>' +
     '<div class="fc-back-main">' + backHtml + '</div>' +
     (c.extra ? '<div class="fc-extra">' + esc(c.extra) + '</div>' : '');
+  // Retournement 3D à la révélation
+  const face = $('fcFace');
+  face.classList.remove('fc-flip');
+  void face.offsetWidth;
+  face.classList.add('fc-flip');
   $('fcHint').textContent = 'Comment ça s\'est passé ?';
   $('gradesRow').classList.remove('hidden');
 }
@@ -647,6 +742,14 @@ async function gradeCard(grade) {
   if (!revealed) return;
   const c = queue[qIndex];
   document.querySelectorAll('.grade').forEach(b => b.disabled = true);
+  const fc = $('flashcard');
+
+  // Retour visuel immédiat selon la note
+  fc.classList.remove('flash-good', 'flash-bad', 'shake');
+  void fc.offsetWidth;
+  if (grade === 0) fc.classList.add('shake', 'flash-bad');
+  else if (grade >= 2) fc.classList.add('flash-good');
+
   try {
     const res = await api('/api/review', {
       method: 'POST',
@@ -656,7 +759,14 @@ async function gradeCard(grade) {
     sessionStats.cards += 1;
     if (res.stats) {
       statsCache = res.stats;
-      $('stScore').textContent = res.stats.score || 0;
+      const sc = $('stScore');
+      const before = sc.textContent;
+      sc.textContent = res.stats.score || 0;
+      if (String(sc.textContent) !== String(before)) {
+        sc.classList.remove('score-pop');
+        void sc.offsetWidth;
+        sc.classList.add('score-pop');
+      }
       $('stReviews').textContent = res.stats.total_reviews || 0;
       $('stStreak').textContent = res.stats.streak_days || 0;
     }
@@ -666,8 +776,16 @@ async function gradeCard(grade) {
     alertMsg('Révision non enregistrée : ' + e.message, 'error');
   } finally {
     document.querySelectorAll('.grade').forEach(b => b.disabled = false);
-    qIndex += 1;
-    renderCard();
+    // Sortie animée de la carte, puis affichage de la suivante
+    const delay = grade === 0 ? 430 : 190;
+    setTimeout(() => {
+      fc.classList.remove('card-in', 'flash-good', 'flash-bad', 'shake');
+      fc.classList.add('card-out');
+      setTimeout(() => {
+        qIndex += 1;
+        renderCard();
+      }, 250);
+    }, delay);
   }
 }
 
@@ -681,6 +799,14 @@ function finishStudy() {
   $('doneMsg').textContent = sessionStats.cards
     ? 'Bravo, ' + sessionStats.cards + ' carte(s) révisée(s) de plus. Reviens demain pour entretenir la mémoire !'
     : 'Rien à réviser pour l\'instant. Reviens plus tard. 🐢';
+
+  // La tortue traverse l'écran pour fêter la fin de session ✊🐢
+  const walker = $('doneTortue');
+  if (walker && sessionStats.cards > 0) {
+    walker.classList.remove('tortue-walk');
+    void walker.offsetWidth;
+    walker.classList.add('tortue-walk');
+  }
 }
 
 $('btnBack').addEventListener('click', () => { show('viewCollections'); loadStats(); });

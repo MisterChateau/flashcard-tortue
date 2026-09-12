@@ -44,19 +44,21 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// 🔒 Rate limiting
+// 🔒 Rate limiting — volontairement généreux pour un usage familial.
+// Le vrai garde-fou anti-spam, c'est la confirmation email de Supabase.
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 600,
+  max: 3000,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === '/health' || req.path === '/config',
   message: { error: 'Trop de requêtes. Réessayez dans quelques minutes.' }
 });
 app.use('/api/', limiter);
 
 const writeLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 120,
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de révisions d\'un coup. Réessayez dans une minute.' }
