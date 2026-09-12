@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.local
+*.log
+audit_*.txt
+.DS_Store
+preview.png
+preview-*.png
+make_splash.py
+capture.sh
+shot.js
