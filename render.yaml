@@ -1,7 +1,7 @@
 # render.yaml — Configuration de déploiement Render pour Flashcard Tortue
 services:
   - type: web
-    name: flashcards-tortue
+    name: flashcard-tortue
     runtime: node
     plan: free
     buildCommand: npm install
@@ -9,15 +9,12 @@ services:
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
-        value: 18
-      # ⚠️ À renseigner dans le Dashboard Render (Service → Environment)
-      # - key: SUPABASE_URL
-      #   value: https://VOTRE-PROJET.supabase.co
-      # - key: SUPABASE_ANON_KEY
-      #   value: clé anon public (exposée au front, protégée par la RLS)
-      # - key: SUPABASE_SERVICE_ROLE_KEY
-      #   value: clé service_role (SECRÈTE — jamais exposée au front)
-      #
-      # 🔒 L'app utilise la clé anon côté client (auth) et service_role côté
-      #    serveur uniquement. La RLS garantit que chaque utilisateur ne voit
-      #    que ses propres données.
+        value: 20
+      # Les valeurs sont saisies dans le Dashboard Render (Service → Environment).
+      # `sync: false` = Render demande la valeur au déploiement sans l'écrire ici.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
