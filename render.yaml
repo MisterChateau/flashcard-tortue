@@ -9,7 +9,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
-        value: 20
+        value: 22
       # Les valeurs sont saisies dans le Dashboard Render (Service → Environment).
       # `sync: false` = Render demande la valeur au déploiement sans l'écrire ici.
       - key: SUPABASE_URL
