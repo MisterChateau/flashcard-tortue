@@ -520,7 +520,20 @@ async function boot() {
   }
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault(); deferredInstall = e;
+    const b = $('btnInstall');
+    if (b) b.textContent = '📲 Installer l\'app';
   });
+  window.addEventListener('appinstalled', () => {
+    deferredInstall = null;
+    alertMsg('App installée avec succès ! 🐢✊', 'ok');
+  });
+  // Si déjà installée (mode standalone), on adapte le bouton
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+    const b = $('btnInstall');
+    if (b) { b.textContent = '✅ App installée'; b.style.opacity = '.6'; }
+    const h = $('installHint');
+    if (h) h.textContent = 'L\'app est installée sur cet appareil 🐢';
+  }
 }
 
 async function onLoggedIn() {
@@ -814,12 +827,38 @@ $('btnDoneAgain').addEventListener('click', () => { if (current) startStudy(curr
 
 $('btnInstall').addEventListener('click', async () => {
   if (deferredInstall) {
-    deferredInstall.prompt();
-    const choice = await deferredInstall.userChoice;
-    if (choice && choice.outcome === 'accepted') alertMsg('Installée ! 🐢', 'ok');
+    try {
+      deferredInstall.prompt();
+      const choice = await deferredInstall.userChoice;
+      if (choice && choice.outcome === 'accepted') {
+        alertMsg('Installation lancée ! 🐢', 'ok');
+      } else {
+        alertMsg('Installation annulée. Tu peux réessayer en rechargeant la page.');
+      }
+    } catch (e) {
+      alertMsg('Le navigateur a bloqué l\'installation. Suis les instructions ci-dessous. 🐢');
+    }
+    // ⚠️ Le prompt ne peut être utilisé qu'UNE fois → on le vide
     deferredInstall = null;
+    return;
+  }
+
+  // Pas de prompt disponible : on explique comment faire manuellement
+  const ua = navigator.userAgent || '';
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+
+  if (isIOS) {
+    alertMsg('Sur iPhone/iPad : bouton Partager (⎋) en bas de Safari → « Sur l\'écran d\'accueil ».');
+  } else if (isAndroid) {
+    alertMsg('Sur Android : menu ⋮ en haut à droite de Chrome → « Installer l\'application » (ou « Ajouter à l\'écran d\'accueil »).');
   } else {
-    alertMsg('Ouvre le menu de ton navigateur puis « Ajouter à l\'écran d\'accueil ».');
+    alertMsg('Ouvre le menu de ton navigateur puis « Installer l\'application » / « Ajouter à l\'écran d\'accueil ».');
+  }
+
+  // Si l'app est déjà installée, on le dit
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    alertMsg('L\'app est déjà installée ✅', 'ok');
   }
 });
 
