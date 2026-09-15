@@ -106,6 +106,21 @@
       box-shadow: 0 2px 10px rgba(16,16,20,.05);
     }
     .col-item:active { transform: scale(.985); }
+    .matiere-head {
+      display: flex; align-items: center; gap: 9px;
+      margin: 20px 2px 10px; padding-bottom: 7px;
+      border-bottom: 2px solid var(--border);
+    }
+    .matiere-head:first-child { margin-top: 2px; }
+    .matiere-head .m-emoji { font-size: 1.25rem; line-height: 1; }
+    .matiere-head .m-name {
+      font-size: .76rem; font-weight: 900; letter-spacing: .09em;
+      text-transform: uppercase; color: var(--black);
+    }
+    .matiere-head .m-count {
+      margin-left: auto; font-size: .68rem; font-weight: 800; color: var(--gray);
+    }
+    .matiere-head .m-bar { width: 4px; height: 18px; border-radius: 3px; flex: 0 0 4px; }
     .col-icon {
       width: 46px; height: 46px; border-radius: 12px; flex: 0 0 46px;
       background: linear-gradient(135deg, var(--red), var(--violet));
@@ -601,6 +616,31 @@ document.querySelectorAll('.tab').forEach(t => {
   });
 });
 
+// 🗂️ Regroupement par matière : convention de slug « matiere:sous-categorie »
+const MATIERES = {
+  anglais:  { emoji: '🇬🇧', label: 'Anglais',  color: '#E1000F' },
+  francais: { emoji: '🇫🇷', label: 'Français', color: '#4C0297' },
+  espagnol: { emoji: '🇪🇸', label: 'Espagnol', color: '#F2C230' },
+  maths:    { emoji: '🔢', label: 'Maths',    color: '#2E8B57' },
+  histoire: { emoji: '🏛️', label: 'Histoire', color: '#B3000C' }
+};
+const AUTRES_MATIERE = { emoji: '📚', label: 'Autres', color: '#101014' };
+
+function parseSlug(slug) {
+  const i = String(slug || '').indexOf(':');
+  if (i < 0) return { matiere: null, sous: slug };
+  return { matiere: slug.slice(0, i), sous: slug.slice(i + 1) };
+}
+
+function collectItemHTML(c, emoji) {
+  return '<div class="col-item" data-slug="' + esc(c.slug) + '">' +
+    '<div class="col-icon">' + (emoji || '📚') + '</div>' +
+    '<div class="col-info"><h3>' + esc(c.title) + '</h3>' +
+    '<p>' + esc(c.description || '') + '</p></div>' +
+    '<span class="col-badge">' + c.cards_count + ' cartes</span>' +
+  '</div>';
+}
+
 async function loadCollections() {
   const list = $('collectionsList');
   list.innerHTML = '<p class="muted">Chargement…</p>';
@@ -611,14 +651,34 @@ async function loadCollections() {
       list.innerHTML = '<p class="muted">Aucune collection disponible pour le moment.</p>';
       return;
     }
-    const icons = { 'verbes-irreguliers-anglais': '🇬🇧' };
-    list.innerHTML = collections.map(c =>
-      '<div class="col-item" data-slug="' + esc(c.slug) + '">' +
-        '<div class="col-icon">' + (icons[c.slug] || '📚') + '</div>' +
-        '<div class="col-info"><h3>' + esc(c.title) + '</h3>' +
-        '<p>' + esc(c.description || '') + '</p></div>' +
-        '<span class="col-badge">' + c.cards_count + ' cartes</span>' +
-      '</div>').join('');
+
+    // Regroupe par matière (ordre d'apparition préservé)
+    const groups = new Map();
+    collections.forEach(c => {
+      const { matiere } = parseSlug(c.slug);
+      const key = matiere || '__autres__';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(c);
+    });
+
+    let html = '';
+    groups.forEach((items, key) => {
+      const meta = key === '__autres__' ? AUTRES_MATIERE : (MATIERES[key] || { emoji: '📚', label: key, color: '#101014' });
+      const total = items.reduce((s, c) => s + (c.cards_count || 0), 0);
+      html += '<div class="matiere-head">' +
+        '<span class="m-bar" style="background:' + meta.color + '"></span>' +
+        '<span class="m-emoji">' + meta.emoji + '</span>' +
+        '<span class="m-name">' + esc(meta.label) + '</span>' +
+        '<span class="m-count">' + items.length + ' coll. · ' + total + ' cartes</span>' +
+      '</div>';
+      html += items.map(c => {
+        const { matiere } = parseSlug(c.slug);
+        const em = matiere && MATIERES[matiere] ? MATIERES[matiere].emoji : '📚';
+        return collectItemHTML(c, em);
+      }).join('');
+    });
+
+    list.innerHTML = html;
     list.querySelectorAll('.col-item').forEach(el => {
       el.addEventListener('click', () => startStudy(el.dataset.slug));
     });
